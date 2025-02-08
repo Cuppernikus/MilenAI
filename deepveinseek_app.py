@@ -1,12 +1,16 @@
 import streamlit as st
 import openai
 
-# Retrieve API key from Streamlit Secrets (NOT os.getenv)
+# Retrieve API key from Streamlit Secrets
 API_KEY = st.secrets["general"].get("OPENROUTER_API_KEY", None)
+
+# UI title
+st.title("🩸 DeepVeinSeek - Your AI Nursing Assistant")
+st.markdown("Ask me anything about nursing! I can provide **clinical guidance, nursing best practices, and patient care tips.** 🏥")
 
 # Stop execution if API key is missing
 if not API_KEY:
-    st.error("❌ ERROR: API key not found! Make sure OPENROUTER_API_KEY is set in Streamlit secrets.")
+    st.error("⚠️ **API key not found!** Please check your configuration in Streamlit Secrets.")
     st.stop()
 
 # Initialize OpenAI client with OpenRouter API
@@ -14,10 +18,6 @@ client = openai.OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=API_KEY,
 )
-
-# Streamlit UI
-st.title("🩸 DeepVeinSeek - Nursing Chatbot")
-st.markdown("**Ask me anything about nursing, and I'll help you!**")
 
 # Store chat history
 if "messages" not in st.session_state:
@@ -29,7 +29,7 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # User input
-user_input = st.text_input("Ask DeepVeinSeek:", key="user_input")
+user_input = st.text_input("💬 **Ask DeepVeinSeek a question:**", key="user_input")
 
 if user_input:
     # Add user message to chat history
@@ -53,5 +53,13 @@ if user_input:
 
     except Exception as e:
         st.error(f"❌ ERROR: OpenRouter API call failed! {e}")
+
+        with st.chat_message("assistant"):
+            st.markdown(ai_response)
+
+    except Exception as e:
+        st.error(f"❌ ERROR: OpenRouter API call failed! {e}")
+
+
 
 
