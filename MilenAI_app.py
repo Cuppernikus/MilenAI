@@ -13,7 +13,7 @@ if not API_KEY:
 
 
 # ✅ Initialize OpenAI client with Groq
-client = openai.Client(api_key=API_KEY, base_url="https://api.groq.com/v1")
+client = openai.OpenAI(api_key=API_KEY, base_url="https://api.groq.com/openai/v1")
 
 def get_ai_response(messages):
     response = client.chat.completions.create(
@@ -23,7 +23,7 @@ def get_ai_response(messages):
     st.write("🔍 Response Source:", response.model)  # Debug: Confirm it's from Groq
     return response.choices[0].message.content
 
-st.title("MilenAI - Now Powered by Groq! 🚀")
+st.title("MilenAI - Your answer to all pressing clinical matters 🩺")
 
 # 💬 Chat Input Field
 user_input = st.text_input("💬 **Ask MilenAI a clinical question:**", key="user_input")
