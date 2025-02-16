@@ -20,17 +20,34 @@ def get_ai_response(messages):
     )
     return response.choices[0].message.content
 
-
 # 🏥 App Header
-st.title("MilenAI")
-st.subheader("Your AI-Powered Clinical Assistant 🩺")
-st.markdown("**Providing fast, evidence-based insights for nurses and healthcare professionals.**")
+st.markdown("<h4 style='color: #4CAF50;'>Helping Nurses & Students with Instant Evidence-Based Answers</h4>", unsafe_allow_html=True)
+
+# 🩺 Chat Interface
+st.markdown("""
+    <h1 style="text-align: center;">🩺 MilenAI</h1>
+    <h4 style="text-align: center; color: #4CAF50;">Your AI-Powered Clinical Assistant</h4>
+""", unsafe_allow_html=True)
 
 # 💬 Chat Input Field
 user_input = st.text_input("💬 **Ask MilenAI a clinical question:**", key="user_input")
 if user_input:
     response = get_ai_response([{"role": "user", "content": user_input}])
     st.write("🩺 MilenAI:", response)
+
+#Customize button style
+st.markdown("""
+    <style>
+        div.stButton > button {
+            background-color: #007BFF;
+            color: white;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 #Preset buttons for user input
 st.subheader("💡 Quick Questions")
@@ -53,9 +70,10 @@ if "messages" not in st.session_state:
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if msg["role"] == "user":
-            st.markdown(f"🗨️ **You:** {msg['content']}")
+            st.markdown(f"<div style='background-color:#D0E8FF; padding:10px; border-radius:10px;'>🗨️ **You:** {msg['content']}</div>", unsafe_allow_html=True)
         else:
-            st.markdown(f"🩺 **MilenAI:** {msg['content']}")
+            st.markdown(f"<div style='background-color:#D4EDDA; padding:10px; border-radius:10px;'>👩‍⚕️ **MilenAI:** {msg['content']}</div>", unsafe_allow_html=True)
+
 
 # 🛠️ Optimized API Call with Groq
 def get_ai_response(messages, retries=3, delay=2):
