@@ -2,15 +2,13 @@ import os
 import time
 import streamlit as st
 import openai
-
+import numpy as np
 
 API_KEY = st.secrets["general"]["GROQ_API_KEY"]  # ✅ This should match secrets.toml
-  # ✅ Ensure this matches secrets.toml
 
 if not API_KEY:
     st.error("❌ ERROR: API key not found! Please check Streamlit Secrets.")
     st.stop()
-
 
 # ✅ Initialize OpenAI client with Groq
 client = openai.OpenAI(api_key=API_KEY, base_url="https://api.groq.com/openai/v1")
@@ -20,30 +18,19 @@ def get_ai_response(messages):
         model="mixtral-8x7b-32768",  # ✅ Correct model name for Groq
         messages=messages
     )
-    st.write("🔍 Response Source:", response.model)  # Debug: Confirm it's from Groq
     return response.choices[0].message.content
 
-st.title("MilenAI - Your AI-Powered Clinical Assistant 🩺")
+
+# 🏥 App Header
+st.title("MilenAI")
+st.subheader("Your AI-Powered Clinical Assistant 🩺")
 st.markdown("**Providing fast, evidence-based insights for nurses and healthcare professionals.**")
 
-
 # 💬 Chat Input Field
-user_input = st.text_input(
-    "💬 **Ask MilenAI a clinical question:**",
-    key="user_input",
-    placeholder="Type your question here and press Enter...",
-)
-# Sidebar for quick access
-with st.sidebar:
-    st.title("⚡ Quick Access")
-    st.markdown("🚀 **Shortcuts:**")
-    if st.button("📊 Trending NCLEX Questions"):
-        st.session_state.user_input = "What are the most commonly asked NCLEX questions?"
-    if st.button("💡 Medication Safety Guide"):
-        st.session_state.user_input = "What are the 5 rights of medication administration?"
-    st.divider()
-    st.markdown("🔹 **About MilenAI:**")
-    st.write("MilenAI is an AI-powered clinical assistant designed to help nurses with real-world patient care and NCLEX prep.")
+user_input = st.text_input("💬 **Ask MilenAI a clinical question:**", key="user_input")
+if user_input:
+    response = get_ai_response([{"role": "user", "content": user_input}])
+    st.write("🩺 MilenAI:", response)
 
 #Preset buttons for user input
 st.subheader("💡 Quick Questions")
@@ -51,8 +38,7 @@ preset_questions = [
     "What are the 5 rights of medication administration?",
     "How do you interpret ABGs (arterial blood gases)?",
     "What are priority nursing interventions for a patient in shock?",
-    "Explain the difference between DKA and HHS.",
-    "What are the most commonly asked NCLEX questions?"
+    "Explain the difference between DKA and HHS."
 ]
 
 for question in preset_questions:
@@ -61,17 +47,7 @@ for question in preset_questions:
 
 # Store chat history
 if "messages" not in st.session_state:
-    for msg in reversed(st.session_state.messages):  # Newest at bottom
-        with st.chat_message(msg["role"]):
-            if msg["role"] == "user":
-                st.markdown(f"<div style='background-color:#D0E8FF; padding:10px; border-radius:10px;'>🗨️ **You:** {msg['content']}</div>", unsafe_allow_html=True)
-            else:
-                st.markdown(f"<div style='background-color:#D4EDDA; padding:10px; border-radius:10px;'>👩‍⚕️ **Nurse AI:** {msg['content']}</div>", unsafe_allow_html=True)
-
-# Auto-scroll to the latest message
-st.markdown("<div id='latest-message'></div>", unsafe_allow_html=True)
-st.markdown("<script>window.scrollTo(0, document.body.scrollHeight);</script>", unsafe_allow_html=True)
-
+    st.session_state.messages = []
 
 # Display previous messages
 for msg in st.session_state.messages:
@@ -114,7 +90,6 @@ if user_input:
             else:
                 st.markdown(f"<div style='background-color:#D4EDDA; padding:10px; border-radius:10px;'>👩‍⚕️ **Nurse AI:** {msg['content']}</div>", unsafe_allow_html=True)
 
-
 # ✨ Footer
 st.divider()
 st.markdown(
@@ -135,11 +110,3 @@ if st.session_state.query_count:
     st.subheader("🔥 Trending Nursing Questions")
     df = pd.DataFrame(st.session_state.query_count.items(), columns=["Question", "Count"]).sort_values(by="Count", ascending=False)
     st.dataframe(df)
-
-
-
-
-
-
-
-
