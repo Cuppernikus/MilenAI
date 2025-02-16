@@ -3,11 +3,12 @@ import time
 import streamlit as st
 import openai
 
-# ✅ Correct API Key Retrieval
-API_KEY = os.getenv("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")  
+#import streamlit as st
+
+API_KEY = st.secrets["general"]["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"]  # ✅ Correct way for Streamlit Secrets
 
 if not API_KEY:
-    st.error("❌ ERROR: API key not found! Please check deployment settings.")
+    st.error("❌ ERROR: API key not found! Please check Streamlit Secrets.")
     st.stop()
 
 # ✅ Initialize OpenAI client with Groq
