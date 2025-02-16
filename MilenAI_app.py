@@ -4,7 +4,6 @@ import streamlit as st
 import openai
 import pandas as pd
 
-# ✅ Load API Key from Streamlit Secrets
 API_KEY = st.secrets["general"]["OPENAI_API_KEY"]
 
 if not API_KEY:
@@ -14,15 +13,13 @@ if not API_KEY:
 # ✅ Initialize OpenAI client
 client = openai.OpenAI(api_key=API_KEY)
 
-# ✅ Corrected AI Response Function (Only One Version!)
+# 🔄 Optimized API Call Function
 def get_ai_response(messages, retries=3, delay=2):
-    """Send a request to OpenAI API with retry logic and dynamic model selection."""
-    
-    # Default to GPT-4o Mini for general use
+    """Send a request to OpenAI API with retry logic and dynamic model switching."""
     model_name = "gpt-4o-mini"
 
-    # Switch to GPT-4 Turbo for NCLEX-style or complex medical queries
-    if any(keyword in messages[-1]["content"].lower() for keyword in ["nclex", "exam", "priority intervention", "practice test"]):
+    # Switch to GPT-4 Turbo for NCLEX-style questions
+    if any(keyword in messages[-1]["content"].lower() for keyword in ["nclex", "exam", "priority intervention"]):
         model_name = "gpt-4-turbo"
 
     for attempt in range(retries):
@@ -31,16 +28,16 @@ def get_ai_response(messages, retries=3, delay=2):
                 model=model_name,
                 messages=messages
             )
-            return response.choices[0].message.content  # ✅ Success
+            return response.choices[0].message.content
         except Exception as e:
             st.warning(f"⚠️ OpenAI API failed (Attempt {attempt+1}/{retries}): {e}")
-            time.sleep(delay)  # ⏳ Wait before retrying
-
+            time.sleep(delay)
     return "⚠️ Sorry, I couldn’t get a response from OpenAI after multiple attempts. Please try again later."
 
-# 🎨 **Custom Styling for UI**
+# 🖌️ Custom CSS for Mobile Optimization & UI Fixes
 st.markdown("""
     <style>
+        /* General UI Styling */
         .stTextInput {
             text-align: center;
             font-size: 16px;
@@ -54,27 +51,57 @@ st.markdown("""
             font-size: 16px;
             font-weight: bold;
         }
+
+        /* Chatbox Styling */
+        .chat-container {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .chat-user {
+            background-color: #E3F2FD;  /* Light blue */
+            color: #333;
+        }
+
+        .chat-ai {
+            background-color: #DFF0D8;  /* Soft green */
+            color: #222;  /* Darker for readability */
+        }
+
+        /* Optimize for mobile */
+        @media screen and (max-width: 768px) {
+            .stTextInput {
+                font-size: 14px;
+            }
+            .chat-container {
+                padding: 8px;
+                font-size: 14px;
+            }
+        }
     </style>
 """, unsafe_allow_html=True)
 
-# 🏥 **App Header**
+# 🏥 App Header
 st.markdown("""
     <h1 style="text-align: center;">🩺 MilenAI</h1>
     <h4 style="text-align: center; color: #4CAF50;">Your AI-Powered Clinical Assistant</h4>
     <h6 style="text-align: center;">Helping Nurses & Students with Instant Evidence-Based Answers</h6>
 """, unsafe_allow_html=True)
 
-# 💬 **Chat Input Field**
+# 💬 Chat Input Field
 user_input = st.text_input("💬 **Ask MilenAI a clinical question:**", key="user_input")
 
 if user_input:
-    # Get AI response with retry handling
-    ai_response = get_ai_response([{"role": "user", "content": user_input}])
+    response = get_ai_response([{"role": "user", "content": user_input}])
+    
+    # Display User Message
+    st.markdown(f"<div class='chat-container chat-user'><strong>🗨️ You:</strong> {user_input}</div>", unsafe_allow_html=True)
 
-    # Display AI response beautifully
-    st.markdown(f"<div style='background-color:#D4EDDA; padding:10px; border-radius:10px;'>👩‍⚕️ **MilenAI:** {ai_response}</div>", unsafe_allow_html=True)
+    # Display AI Response
+    st.markdown(f"<div class='chat-container chat-ai'><strong>👩‍⚕️ MilenAI:</strong> {response}</div>", unsafe_allow_html=True)
 
-# 💡 **Quick Question Presets**
+# 🏥 Quick Question Presets
 st.subheader("💡 Quick Questions")
 preset_questions = [
     "What are the 5 rights of medication administration?",
@@ -83,28 +110,23 @@ preset_questions = [
     "Explain the difference between DKA and HHS."
 ]
 
-# Handle preset question clicks
-preset_clicked = st.radio("Choose a question:", preset_questions, index=None, key="preset")
+for question in preset_questions:
+    if st.button(question):
+        user_input = question
 
-if preset_clicked:
-    ai_response = get_ai_response([{"role": "user", "content": preset_clicked}])
-    st.markdown(f"<div style='background-color:#D4EDDA; padding:10px; border-radius:10px;'>👩‍⚕️ **MilenAI:** {ai_response}</div>", unsafe_allow_html=True)
-
-# 📊 **Analytics Tracker**
+# 📊 Analytics Tracker
 if "query_count" not in st.session_state:
     st.session_state.query_count = {}
 
 if user_input:
     st.session_state.query_count[user_input] = st.session_state.query_count.get(user_input, 0) + 1
 
-# 🔥 **Trending Nursing Questions**
+# 🔥 Display Most Asked Questions
 if st.session_state.query_count:
     st.subheader("🔥 Trending Nursing Questions")
     df = pd.DataFrame(st.session_state.query_count.items(), columns=["Question", "Count"]).sort_values(by="Count", ascending=False)
     st.dataframe(df)
 
-# ✨ **Footer**
+# ✨ Footer
 st.divider()
-st.markdown(
-    "⚠️ _This is an AI-based assistant and does not replace professional medical advice._"
-)
+st.markdown("⚠️ _This is an AI-based assistant and does not replace professional medical advice._")
