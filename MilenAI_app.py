@@ -3,13 +3,14 @@ import time
 import streamlit as st
 import openai
 
-#import streamlit as st
 
-API_KEY = st.secrets["general"]["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"]  # ✅ Correct way for Streamlit Secrets
+API_KEY = st.secrets["general"]["GROQ_API_KEY"]  # ✅ This should match secrets.toml
+  # ✅ Ensure this matches secrets.toml
 
 if not API_KEY:
     st.error("❌ ERROR: API key not found! Please check Streamlit Secrets.")
     st.stop()
+
 
 # ✅ Initialize OpenAI client with Groq
 client = openai.Client(api_key=API_KEY, base_url="https://api.groq.com/v1")
