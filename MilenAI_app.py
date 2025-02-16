@@ -25,8 +25,8 @@ def get_ai_response(messages):
 
 st.title("MilenAI - Now Powered by Groq! 🚀")
 
-user_input = st.text_input("Ask MilenAI a question:")
-
+# 💬 Chat Input Field
+user_input = st.text_input("💬 **Ask MilenAI a clinical question:**", key="user_input")
 if user_input:
     response = get_ai_response([{"role": "user", "content": user_input}])
     st.write("🩺 MilenAI:", response)
@@ -55,8 +55,6 @@ def get_ai_response(messages, retries=3, delay=2):
             time.sleep(delay)  # ⏳ Wait before retrying
     return "⚠️ Sorry, I couldn’t get a response from Groq. Please try again later."
 
-# 💬 Chat Input Field
-user_input = st.text_input("💬 **Ask MilenAI a clinical question:**", key="user_input")
 
 if user_input:
     # Add user message to chat history
