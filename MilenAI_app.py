@@ -17,7 +17,7 @@ client = openai.OpenAI(api_key=API_KEY, base_url="https://api.groq.com/openai/v1
 
 def get_ai_response(messages):
     response = client.chat.completions.create(
-        model="groq/gpt-4-turbo",  
+        model="mixtral-8x7b-32768",  # ✅ Correct model name for Groq
         messages=messages
     )
     st.write("🔍 Response Source:", response.model)  # Debug: Confirm it's from Groq
