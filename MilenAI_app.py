@@ -3,7 +3,7 @@ import openai
 import time
 
 # Retrieve API key from Streamlit Secrets
-API_KEY = st.secrets["general"].get("OPENROUTER_API_KEY", None)
+API_KEY = st.secrets["general"].get("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", None)
 
 # Stop execution if API key is missing
 if not API_KEY:
