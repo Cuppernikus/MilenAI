@@ -28,10 +28,22 @@ st.markdown("**Providing fast, evidence-based insights for nurses and healthcare
 
 
 # 💬 Chat Input Field
-user_input = st.text_input("💬 **Ask MilenAI a clinical question:**", key="user_input")
-if user_input:
-    response = get_ai_response([{"role": "user", "content": user_input}])
-    st.write("🩺 MilenAI:", response)
+user_input = st.text_input(
+    "💬 **Ask MilenAI a clinical question:**",
+    key="user_input",
+    placeholder="Type your question here and press Enter...",
+)
+# Sidebar for quick access
+with st.sidebar:
+    st.title("⚡ Quick Access")
+    st.markdown("🚀 **Shortcuts:**")
+    if st.button("📊 Trending NCLEX Questions"):
+        st.session_state.user_input = "What are the most commonly asked NCLEX questions?"
+    if st.button("💡 Medication Safety Guide"):
+        st.session_state.user_input = "What are the 5 rights of medication administration?"
+    st.divider()
+    st.markdown("🔹 **About MilenAI:**")
+    st.write("MilenAI is an AI-powered clinical assistant designed to help nurses with real-world patient care and NCLEX prep.")
 
 #Preset buttons for user input
 st.subheader("💡 Quick Questions")
@@ -49,7 +61,17 @@ for question in preset_questions:
 
 # Store chat history
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    for msg in reversed(st.session_state.messages):  # Newest at bottom
+        with st.chat_message(msg["role"]):
+            if msg["role"] == "user":
+                st.markdown(f"<div style='background-color:#D0E8FF; padding:10px; border-radius:10px;'>🗨️ **You:** {msg['content']}</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div style='background-color:#D4EDDA; padding:10px; border-radius:10px;'>👩‍⚕️ **Nurse AI:** {msg['content']}</div>", unsafe_allow_html=True)
+
+# Auto-scroll to the latest message
+st.markdown("<div id='latest-message'></div>", unsafe_allow_html=True)
+st.markdown("<script>window.scrollTo(0, document.body.scrollHeight);</script>", unsafe_allow_html=True)
+
 
 # Display previous messages
 for msg in st.session_state.messages:
@@ -83,12 +105,8 @@ if user_input:
 
     # Add AI response to chat history
     st.session_state.messages.append({"role": "assistant", "content": ai_response})
-
-    # Display AI response beautifully
-    with st.chat_message("assistant"):
-        st.markdown(f"👩‍⚕️ **Nurse AI:** {ai_response}")  # Female Nurse  
-    
-    #Chat Display
+      
+    #Display AI Chat beautifully
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             if msg["role"] == "user":
