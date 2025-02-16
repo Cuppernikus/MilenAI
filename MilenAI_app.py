@@ -1,31 +1,33 @@
+import os
+import time
 import streamlit as st
 import openai
-import time
 
-# Retrieve API key from Streamlit Secrets
-API_KEY = st.secrets.get("general", {}).get("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", None)
+# ✅ Correct API Key Retrieval
+API_KEY = os.getenv("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")  
 
-
-# Stop execution if API key is missing
 if not API_KEY:
-    st.error("❌ ERROR: API key not found! Please check Streamlit Secrets.")
+    st.error("❌ ERROR: API key not found! Please check deployment settings.")
     st.stop()
 
-# Initialize OpenAI client with OpenRouter API
-client = openai.Client(
-    api_key=API_KEY,
-    base_url="https://openrouter.ai/api/v1"
-)
+# ✅ Initialize OpenAI client with Groq
+client = openai.Client(api_key=API_KEY, base_url="https://api.groq.com/v1")
 
-# 🎨 Beautiful UI Design
-st.set_page_config(page_title="DeepVeinSeek - AI Clinical Assistant", page_icon="🩸")
-st.title("🩸 DeepVeinSeek - AI Clinical Assistant")
-st.markdown(
-    "### 💬 Ask me anything about nursing and patient care!\n"
-    "**DeepVeinSeek is an AI chatbot created and managed by a Registered Nurse** 🏥\n"
-    "_⚠️ Disclaimer: This is an AI chatbot, not a licensed healthcare provider. Always verify information with clinical guidelines._"
-)
-st.divider()
+def get_ai_response(messages):
+    response = client.chat.completions.create(
+        model="groq/gpt-4-turbo",  
+        messages=messages
+    )
+    st.write("🔍 Response Source:", response.model)  # Debug: Confirm it's from Groq
+    return response.choices[0].message.content
+
+st.title("MilenAI - Now Powered by Groq! 🚀")
+
+user_input = st.text_input("Ask MilenAI a question:")
+
+if user_input:
+    response = get_ai_response([{"role": "user", "content": user_input}])
+    st.write("🩺 MilenAI:", response)
 
 # Store chat history
 if "messages" not in st.session_state:
@@ -36,23 +38,23 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 🛠️ Function to handle OpenRouter API calls with retry logic
-def get_ai_response(messages, retries=3, delay=3):
-    """Send a request to OpenRouter API with retries in case of failure."""
+# 🛠️ Optimized API Call with Groq
+def get_ai_response(messages, retries=3, delay=2):
+    """Send a request to Groq API with optimized handling and retry logic."""
     for attempt in range(retries):
         try:
             response = client.chat.completions.create(
-                model="deepseek/deepseek-r1:free",
+                model="groq/gpt-4-turbo",  # Adjust if necessary for available Groq models
                 messages=messages
             )
             return response.choices[0].message.content  # ✅ Success
         except Exception as e:
-            st.warning(f"⚠️ OpenRouter API failed (Attempt {attempt+1}/{retries}): {e}")
+            st.warning(f"⚠️ Groq API failed (Attempt {attempt+1}/{retries}): {e}")
             time.sleep(delay)  # ⏳ Wait before retrying
-    return "⚠️ Sorry, I couldn’t get a response from OpenRouter. Please try again later."
+    return "⚠️ Sorry, I couldn’t get a response from Groq. Please try again later."
 
 # 💬 Chat Input Field
-user_input = st.text_input("💬 **Ask DeepVeinSeek a clinical question:**", key="user_input")
+user_input = st.text_input("💬 **Ask MilenAI a clinical question:**", key="user_input")
 
 if user_input:
     # Add user message to chat history
@@ -66,14 +68,14 @@ if user_input:
 
     # Display AI response beautifully
     with st.chat_message("assistant"):
-        st.markdown(f"🩺 **DeepVeinSeek:** {ai_response}")
+        st.markdown(f"🩺 **MilenAI:** {ai_response}")
 
 # ✨ Footer
 st.divider()
 st.markdown(
-    "**DeepVeinSeek is an AI chatbot created and managed by a Registered Nurse.**\n"
-    "⚠️ _This is an AI-based assistant and does not replace professional medical advice._"
+        "⚠️ _This is an AI-based assistant and does not replace professional medical advice._"
 )
+
 
 
 
