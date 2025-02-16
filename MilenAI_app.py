@@ -5,41 +5,76 @@ import openai
 import pandas as pd
 
 # ✅ Load API Key from Streamlit Secrets
-API_KEY = st.secrets["general"]["GROQ_API_KEY"]
+API_KEY = st.secrets["general"]["OPENAI_API_KEY"]
 
 if not API_KEY:
     st.error("❌ ERROR: API key not found! Please check Streamlit Secrets.")
     st.stop()
 
-# ✅ Initialize OpenAI client with Groq
-client = openai.OpenAI(api_key=API_KEY, base_url="https://api.groq.com/openai/v1")
+# ✅ Initialize OpenAI client
+client = openai.OpenAI(api_key=API_KEY)
 
+# ✅ Corrected AI Response Function (Only One Version!)
 def get_ai_response(messages, retries=3, delay=2):
-    """Send a request to Groq API with retry logic."""
+    """Send a request to OpenAI API with retry logic and dynamic model selection."""
+    
+    # Default to GPT-4o Mini for general use
+    model_name = "gpt-4o-mini"
+
+    # Switch to GPT-4 Turbo for NCLEX-style or complex medical queries
+    if any(keyword in messages[-1]["content"].lower() for keyword in ["nclex", "exam", "priority intervention", "practice test"]):
+        model_name = "gpt-4-turbo"
+
     for attempt in range(retries):
         try:
             response = client.chat.completions.create(
-                model="mixtral-8x7b-32768",
+                model=model_name,
                 messages=messages
             )
-            return response.choices[0].message.content
+            return response.choices[0].message.content  # ✅ Success
         except Exception as e:
-            st.warning(f"⚠️ Groq API failed (Attempt {attempt+1}/{retries}): {e}")
-            time.sleep(delay)
-    return "⚠️ Sorry, I couldn’t get a response from Groq after multiple attempts. Please try again later."
+            st.warning(f"⚠️ OpenAI API failed (Attempt {attempt+1}/{retries}): {e}")
+            time.sleep(delay)  # ⏳ Wait before retrying
 
-# 🏥 **Header & Title**
-st.markdown("<h1 style='text-align: center;'>🩺 MilenAI</h1>", unsafe_allow_html=True)
-st.markdown("<h3 style='text-align: center; color: #4CAF50;'>Your AI-Powered Clinical Assistant</h3>", unsafe_allow_html=True)
-st.markdown("<h4 style='text-align: center;'>Helping Nurses & Students with Instant Evidence-Based Answers</h4>", unsafe_allow_html=True)
+    return "⚠️ Sorry, I couldn’t get a response from OpenAI after multiple attempts. Please try again later."
+
+# 🎨 **Custom Styling for UI**
+st.markdown("""
+    <style>
+        .stTextInput {
+            text-align: center;
+            font-size: 16px;
+            padding: 10px;
+        }
+        div.stButton > button {
+            background-color: #007BFF;
+            color: white;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# 🏥 **App Header**
+st.markdown("""
+    <h1 style="text-align: center;">🩺 MilenAI</h1>
+    <h4 style="text-align: center; color: #4CAF50;">Your AI-Powered Clinical Assistant</h4>
+    <h6 style="text-align: center;">Helping Nurses & Students with Instant Evidence-Based Answers</h6>
+""", unsafe_allow_html=True)
 
 # 💬 **Chat Input Field**
 user_input = st.text_input("💬 **Ask MilenAI a clinical question:**", key="user_input")
-if user_input:
-    response = get_ai_response([{"role": "user", "content": user_input}])
-    st.write("👩‍⚕️ **MilenAI:**", response)
 
-# 🔹 **Quick Access Preset Questions**
+if user_input:
+    # Get AI response with retry handling
+    ai_response = get_ai_response([{"role": "user", "content": user_input}])
+
+    # Display AI response beautifully
+    st.markdown(f"<div style='background-color:#D4EDDA; padding:10px; border-radius:10px;'>👩‍⚕️ **MilenAI:** {ai_response}</div>", unsafe_allow_html=True)
+
+# 💡 **Quick Question Presets**
 st.subheader("💡 Quick Questions")
 preset_questions = [
     "What are the 5 rights of medication administration?",
@@ -48,42 +83,28 @@ preset_questions = [
     "Explain the difference between DKA and HHS."
 ]
 
-for question in preset_questions:
-    if st.button(question):
-        user_input = question  # Autofill user input
+# Handle preset question clicks
+preset_clicked = st.radio("Choose a question:", preset_questions, index=None, key="preset")
 
-# 💾 **Chat History Storage**
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if preset_clicked:
+    ai_response = get_ai_response([{"role": "user", "content": preset_clicked}])
+    st.markdown(f"<div style='background-color:#D4EDDA; padding:10px; border-radius:10px;'>👩‍⚕️ **MilenAI:** {ai_response}</div>", unsafe_allow_html=True)
 
-# 🏥 **Display Chat Messages**
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        if msg["role"] == "user":
-            st.markdown(f"<div style='background-color:#D0E8FF; padding:10px; border-radius:10px;'>🗨️ **You:** {msg['content']}</div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div style='background-color:#D4EDDA; padding:10px; border-radius:10px;'>👩‍⚕️ **MilenAI:** {msg['content']}</div>", unsafe_allow_html=True)
-
-# 💬 **Process AI Response & Update Chat History**
-if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    ai_response = get_ai_response(st.session_state.messages)
-    st.session_state.messages.append({"role": "assistant", "content": ai_response})
-
-# 🔥 **Analytics Tracker - Most Asked Questions**
+# 📊 **Analytics Tracker**
 if "query_count" not in st.session_state:
     st.session_state.query_count = {}
 
 if user_input:
     st.session_state.query_count[user_input] = st.session_state.query_count.get(user_input, 0) + 1
 
+# 🔥 **Trending Nursing Questions**
 if st.session_state.query_count:
-    st.subheader("📊 Trending Nursing Questions")
+    st.subheader("🔥 Trending Nursing Questions")
     df = pd.DataFrame(st.session_state.query_count.items(), columns=["Question", "Count"]).sort_values(by="Count", ascending=False)
     st.dataframe(df)
 
-# ⚠️ **Disclaimer Footer**
+# ✨ **Footer**
 st.divider()
 st.markdown(
-        "⚠️ _This is an AI-based assistant and does not replace professional medical advice._"
+    "⚠️ _This is an AI-based assistant and does not replace professional medical advice._"
 )
