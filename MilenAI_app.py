@@ -1,132 +1,182 @@
-import os
-import time
 import streamlit as st
 import openai
 import pandas as pd
+import random
 
+# OpenAI API Key (Load from Streamlit Secrets)
 API_KEY = st.secrets["general"]["OPENAI_API_KEY"]
+openai.api_key = API_KEY
 
-if not API_KEY:
-    st.error("❌ ERROR: API key not found! Please check Streamlit Secrets.")
-    st.stop()
+# Session state initialization
+if "query_cache" not in st.session_state:
+    st.session_state.query_cache = {}
+if "ratings" not in st.session_state:
+    st.session_state.ratings = {}
+if "query_count" not in st.session_state:
+    st.session_state.query_count = {}
+if "user_input" not in st.session_state:
+    st.session_state.user_input = ""
+if "query_history" not in st.session_state:
+    st.session_state.query_history = []
 
-# ✅ Initialize OpenAI client
-client = openai.OpenAI(api_key=API_KEY)
-
-# 🔄 Optimized API Call Function
-def get_ai_response(messages, retries=3, delay=2):
-    """Send a request to OpenAI API with retry logic and dynamic model switching."""
-    model_name = "gpt-4o-mini"
-
-    # Switch to GPT-4 Turbo for NCLEX-style questions
-    if any(keyword in messages[-1]["content"].lower() for keyword in ["nclex", "exam", "priority intervention"]):
-        model_name = "gpt-4-turbo"
-
-    for attempt in range(retries):
-        try:
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=messages
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            st.warning(f"⚠️ OpenAI API failed (Attempt {attempt+1}/{retries}): {e}")
-            time.sleep(delay)
-    return "⚠️ Sorry, I couldn’t get a response from OpenAI after multiple attempts. Please try again later."
-
-# 🖌️ Custom CSS for Mobile Optimization & UI Fixes
-st.markdown("""
-    <style>
-        /* General UI Styling */
-        .stTextInput {
-            text-align: center;
-            font-size: 16px;
-            padding: 10px;
-        }
-        div.stButton > button {
-            background-color: #007BFF;
-            color: white;
-            border-radius: 10px;
-            padding: 10px 20px;
-            font-size: 16px;
-            font-weight: bold;
-        }
-
-        /* Chatbox Styling */
-        .chat-container {
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-
-        .chat-user {
-            background-color: #E3F2FD;  /* Light blue */
-            color: #333;
-        }
-
-        .chat-ai {
-            background-color: #DFF0D8;  /* Soft green */
-            color: #222;  /* Darker for readability */
-        }
-
-        /* Optimize for mobile */
-        @media screen and (max-width: 768px) {
-            .stTextInput {
-                font-size: 14px;
-            }
-            .chat-container {
-                padding: 8px;
-                font-size: 14px;
-            }
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# 🏥 App Header
-st.markdown("""
-    <h1 style="text-align: center;">🩺 MilenAI</h1>
-    <h4 style="text-align: center; color: #4CAF50;">Your AI-Powered Clinical Assistant</h4>
-    <h6 style="text-align: center;">Helping Nurses & Students with Instant Evidence-Based Answers</h6>
-""", unsafe_allow_html=True)
-
-# 💬 Chat Input Field
-user_input = st.text_input("💬 **Ask MilenAI a clinical question:**", key="user_input")
-
-if user_input:
-    response = get_ai_response([{"role": "user", "content": user_input}])
-    
-    # Display User Message
-    st.markdown(f"<div class='chat-container chat-user'><strong>🗨️ You:</strong> {user_input}</div>", unsafe_allow_html=True)
-
-    # Display AI Response
-    st.markdown(f"<div class='chat-container chat-ai'><strong>👩‍⚕️ MilenAI:</strong> {response}</div>", unsafe_allow_html=True)
-
-# 🏥 Quick Question Presets
-st.subheader("💡 Quick Questions")
-preset_questions = [
+# List of quick questions
+QUICK_QUESTIONS = [
     "What are the 5 rights of medication administration?",
     "How do you interpret ABGs (arterial blood gases)?",
     "What are priority nursing interventions for a patient in shock?",
-    "Explain the difference between DKA and HHS."
+    "Explain the difference between DKA and HHS.",
 ]
 
-for question in preset_questions:
-    if st.button(question):
-        user_input = question
+# -------------------------------
+# **Hybrid Model Selection**
+# -------------------------------
+def openai_chat_completion(messages, temperature=0.2, max_tokens=500):
+    """
+    Determines the correct model based on question type.
+    Uses GPT-4 Turbo for NCLEX-style questions and GPT-4o Mini for general clinical inquiries.
+    """
+    # Keywords indicating an NCLEX exam question
+    nclex_keywords = ["nclex", "exam", "priority", "best action", "intervention", "question", "answer choices"]
 
-# 📊 Analytics Tracker
-if "query_count" not in st.session_state:
-    st.session_state.query_count = {}
+    # Determine the appropriate model
+    model = "gpt-4o-mini"
+    if any(keyword in messages[-1]["content"].lower() for keyword in nclex_keywords):
+        model = "gpt-4-turbo"  # Switch to Turbo for NCLEX questions
 
-if user_input:
-    st.session_state.query_count[user_input] = st.session_state.query_count.get(user_input, 0) + 1
+    try:
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"⚠️ OpenAI API Error: {e}"
 
-# 🔥 Display Most Asked Questions
-if st.session_state.query_count:
-    st.subheader("🔥 Trending Nursing Questions")
-    df = pd.DataFrame(st.session_state.query_count.items(), columns=["Question", "Count"]).sort_values(by="Count", ascending=False)
-    st.dataframe(df)
+# -------------------------------
+# **Handling User Queries**
+# -------------------------------
+def handle_user_query(query):
+    """
+    Handles user queries by determining whether it should be an NCLEX-style or general clinical response.
+    Caches responses for efficiency.
+    """
+    if not query.strip():
+        return
 
-# ✨ Footer
-st.divider()
-st.markdown("⚠️ _This is an AI-based assistant and does not replace professional medical advice._")
+    # Check if already cached
+    if query in st.session_state.query_cache:
+        st.write("🩺 **MilenAi (Cached):**", st.session_state.query_cache[query])
+    else:
+        # Get response from the correct AI model
+        messages = [{"role": "user", "content": query}]
+        answer = openai_chat_completion(messages)
+
+        # Store in cache & display response
+        st.session_state.query_cache[query] = answer
+        st.write("🩺 **MilenAi:**", answer)
+
+    # Append to session query history
+    st.session_state.query_history.append(query)
+
+# -------------------------------
+# **Streamlit UI**
+# -------------------------------
+st.markdown("""
+    <h1 style="text-align: center;">🩺 MilenAi </h1>
+    <h4 style="text-align: center; color: #4CAF50;">Your AI-Powered Clinical Educator & Assistant</h4>
+    <h6 style="text-align: center; color: #555;">Evidence-Based Answers from Peer-Reviewed Sources</h6>
+    <hr>
+""", unsafe_allow_html=True)
+
+# -------------------------------
+# **User Input**
+# -------------------------------
+user_query = st.text_input("💬 **Ask MilenAi a clinical (or NCLEX) question:**", key="user_input")
+submit_col = st.columns([0.8, 0.2])[1]
+
+if submit_col.button("Submit"):
+    handle_user_query(user_query)
+
+# -------------------------------
+# **Quick Questions (FIXED)**
+# -------------------------------
+import random
+
+# Define topic-based preset questions
+TOPIC_QUESTIONS = {
+    "medication": [
+        "What are the 5 rights of medication administration?",
+        "How do you calculate medication dosages?",
+        "What are common side effects of beta-blockers?",
+        "Explain the difference between ACE inhibitors and ARBs.",
+    ],
+    "cardiology": [
+        "What are priority interventions for a patient in heart failure?",
+        "How do you recognize and manage atrial fibrillation?",
+        "What ECG changes indicate myocardial infarction?",
+        "Explain the use of beta-blockers in hypertension management.",
+    ],
+    "respiratory": [
+        "How do you interpret arterial blood gases (ABGs)?",
+        "What are nursing interventions for COPD patients?",
+        "What is the difference between BiPAP and CPAP?",
+        "How do you assess for impending respiratory failure?",
+    ],
+    "endocrine": [
+        "Explain the difference between DKA and HHS.",
+        "What are priority nursing actions for a hypoglycemic patient?",
+        "How does insulin affect potassium levels?",
+        "Discuss patient education for newly diagnosed Type 2 diabetes.",
+    ],
+    "critical care": [
+        "What are signs and symptoms of sepsis?",
+        "How do you assess for shock?",
+        "What are the criteria for SIRS vs. sepsis?",
+        "What are key components of ventilator management?",
+    ],
+}
+
+def get_dynamic_questions(user_query):
+    """
+    Extracts a keyword from the user's query and selects a set of related questions.
+    If no keyword matches, returns a general set of questions.
+    """
+    for topic, questions in TOPIC_QUESTIONS.items():
+        if topic in user_query.lower():
+            return random.sample(questions, min(len(questions), 3))  # Randomize 3 questions
+
+    # If no match, return general quick questions
+    return random.sample(sum(TOPIC_QUESTIONS.values(), []), 3)  # Flatten and pick 3
+
+# Example usage:
+user_input = "What are priority interventions for a heart failure patient?"
+quick_questions = get_dynamic_questions(user_input)
+print(quick_questions)  # Example output: ["How do you recognize and manage atrial fibrillation?", "What ECG changes indicate myocardial infarction?", "What are priority interventions for a patient in heart failure?"]
+
+# -------------------------------
+# **Session Query History**
+# -------------------------------
+st.subheader("📝 Recent Queries")
+if st.session_state.query_history:
+    for i, q in enumerate(st.session_state.query_history[::-1][:5], start=1):
+        st.write(f"{i}. {q}")
+else:
+    st.write("No queries yet.")
+
+# -------------------------------
+# **Footer**
+# -------------------------------
+st.write("---")
+st.markdown(
+    "<p style='text-align:center; color:gray;'>"
+    "⚠️ <em>This is an AI-based assistant and does not replace professional medical advice.</em>"
+    "</p>",
+    unsafe_allow_html=True
+)
+
+
