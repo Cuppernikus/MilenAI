@@ -29,7 +29,7 @@ mdurl==0.1.2
 multidict==6.1.0
 narwhals==1.26.0
 numpy==2.2.3
-openai==0.28.0
+openai>=1.0.0
 packaging==24.2
 pandas==2.2.3
 pillow==11.1.0
